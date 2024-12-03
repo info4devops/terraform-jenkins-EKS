@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    environment{
+    environment {
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
         AWS_DEFAULT_REGION = "us-east-1"
@@ -8,84 +8,67 @@ pipeline {
     
     stages {
         
-        stage ("Checkout SCM") {
+        stage("Checkout SCM") {
             steps {
-                script {
-                    checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/info4devops/terraform-jenkins-EKS.git']])
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    extensions: [],
+                    userRemoteConfigs: [[url: 'https://github.com/info4devops/terraform-jenkins-EKS.git']]
+                ])
+            }
+        }
+        
+        stage("Initializing Terraform") {
+            steps {
+                dir('EKS_Cluster') {
+                    sh 'terraform init'
                 }
             }
         }
         
-        stage ("Initializing Terraform") {
+        stage("Formatting Terraform Code") {
+            steps {
+                dir('EKS_Cluster') {
+                    sh 'terraform fmt'
+                }
+            }
+        }
+        
+        stage("Validating Terraform") {
+            steps {
+                dir('EKS_Cluster') {
+                    sh 'terraform validate'
+                }
+            }
+        }
+        
+        stage("Previewing The Infra using Terraform") {
+            steps {
+                dir('EKS_Cluster') {
+                    sh 'terraform plan'
+                }
+            }
+        }
+        
+        stage("Creating/Destroying EKS Cluster") {
             steps {
                 script {
-                    dir('EKS_Cluster'){
-                        sh 'terraform init'
-                        
+                    def action = params.ACTION ?: 'apply' // Default to 'apply' if no parameter is passed
+                    dir('EKS_Cluster') {
+                        sh "terraform ${action} --auto-approve"
                     }
                 }
             }
         }
         
-        stage ("Formatting Terraform Code") {
+        stage("Deploying Nginx Server") {
             steps {
-                script {
-                    dir('EKS_Cluster'){
-                        sh 'terraform fmt'
-                        
-                    }
+                dir('EKS_Cluster/ConfigurationFiles') {
+                    sh 'aws eks update-kubeconfig --name my-eks-cluster'
+                    sh 'kubectl apply -f deployment.yml'
                 }
             }
         }
-        
-        stage ("Validating Terraform") {
-            steps {
-                script {
-                    dir('EKS_Cluster'){
-                        sh 'terraform validate'
-                        
-                    }
-                }
-            }
-        }
-        
-        stage ("Previewing The Infra using Terraform") {
-            steps {
-                script {
-                    dir('EKS_Cluster'){
-                        sh 'terraform plan'
-                        
-                    }
-                }
-            }
-        }
-        
-        stage ("Creating/Destroying EKS Cluster") {
-            steps {
-                script {
-                    dir('EKS_Cluster'){
-                        sh 'terraform $action --auto-approve'
-                        
-                    }
-                }
-            }
-        }
-        
-        stage ("Deploying Nginx Server") {
-            steps {
-                script {
-                    dir('EKS_Cluster/ConfigurationFiles'){
-                        sh 'aws eks update-kubeconfig --name my-eks-cluster'
-                        sh 'kubectl apply -f deployment.yml'
-                        
-                    }
-                }
-            }
-        }
-        
-        
-        
-        
     }
-    
 }
