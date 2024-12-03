@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+    environment{
+        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        region="us-east-1"
+    }
+    
+    stages {
+        
+        stage ("Checkout SCM") {
+            steps {
+                script {
+                    checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/info4devops/terraform-jenkins-EKS.git']])
+                }
+            }
+        }
+        
+        stage ("Initializing Terraform") {
+            steps {
+                script {
+                    dir('EKS_Cluster'){
+                        sh 'terraform init'
+                        
+                    }
+                }
+            }
+        }
+        
+        stage ("Formatting Terraform Code") {
+            steps {
+                script {
+                    dir('EKS_Cluster'){
+                        sh 'terraform fmt'
+                        
+                    }
+                }
+            }
+        }
+        
+        stage ("Validating Terraform") {
+            steps {
+                script {
+                    dir('EKS_Cluster'){
+                        sh 'terraform validate'
+                        
+                    }
+                }
+            }
+        }
+        
+        stage ("Previewing The Infra using Terraform") {
+            steps {
+                script {
+                    dir('EKS_Cluster'){
+                        sh 'terraform plan'
+                        
+                    }
+                }
+            }
+        }
+        
+        
+    }
+    
+}

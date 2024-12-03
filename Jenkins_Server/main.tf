@@ -80,7 +80,12 @@ module "ec2_instance" {
   user_data                   = file("jenkins-install.sh") # passing userdata script
   availability_zone           = data.aws_availability_zones.azs.names[0]
 
-
+  # Define Root Block Device
+  root_block_device = [{
+    volume_size           = 25    # Size in GB
+    volume_type           = "gp2" # General Purpose SSD
+    delete_on_termination = true  # Delete volume when instance is terminated
+  }]
 
   tags = {
     Name        = "jenkins-server"
